@@ -23,10 +23,10 @@ module.exports = {
         const members = await interaction.guild.members.fetch();
         members.sweep(user => !user.roles.cache.some(userRole => userRole.id === role));
 
-        const memberStatus = {};
+        const membersStatus = {};
         const startMembersList = '';
         for (const member in members) {
-            memberStatus[member.id] = 'Не ответили';
+            membersStatus[member.id] = 'ignore';
             startMembersList.concat(`${member.id}<br>`);
         }
 
@@ -56,22 +56,32 @@ module.exports = {
             .setTitle(title)
             .setDescription(desc)
             .setFields(
-                { name: 'Идут', inline: true },
-                { name: 'Не идут', inline: true },
-                { name: 'Под вопросом', inline: true },
-                { name: 'Не ответили', value: startMembersList, inline: true },
+                { name: 'success', inline: true },
+                { name: 'cancel', inline: true },
+                { name: 'maybe', inline: true },
+                { name: 'ignore', value: startMembersList, inline: true },
             );
 
         await interaction.reply({ embed: [embed], components: [buttons] });
 
-        const collector = await interaction.channel.createMessageComponentCollector();
+        const collector = await interaction.message.createMessageComponentCollector();
 
         collector.on('collect', async (action) => {
-            const member = action.member.id;
             const buttonId = action.customId;
-            const messageEmbed = action.message.embeds[0];
 
-            
+            if (buttonId === 'delete') { action.message.delete(); }
+            else {
+                const messageEmbed = action.message.embeds[0];
+                const member = action.member.id;
+
+                for (let fieldIndex = 0; fieldIndex < messageEmbed.fields.length; fieldIndex++) {
+                    if (messageEmbed.fields[fieldIndex].name === membersStatus[member]) {
+                        messageEmbed.fields[fieldIndex].value.replace(`${member}<br>`);
+                        break;
+                    }
+                }
+                for ()
+            }
         });
     },
 };
