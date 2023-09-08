@@ -2,11 +2,11 @@ const { SlashCommandBuilder, PermissionsBitField, EmbedBuilder, ButtonBuilder, B
 
 module.exports = {
     data: new SlashCommandBuilder()
-        .setName('Parti_control')
+        .setName('PartyControl')
         .setDescription('Сообщение для контроля участий рейда')
         .addRoleOption(option =>
             option.setName('Role')
-            .setDescription('Роль рейда')
+            .setDescription('Роль контролируемого рейда')
             .setRequired(true))
         .addStringOption(option =>
             option.setName('Title')
@@ -27,7 +27,7 @@ module.exports = {
         const startMembersList = '';
         for (const member in members) {
             membersStatus[member.id] = 'ignore';
-            startMembersList.concat(`${member.id}<br>`);
+            startMembersList.concat(`<@${member.id}><br>`);
         }
 
         const buttons = new ActionRowBuilder()
@@ -62,9 +62,9 @@ module.exports = {
                 { name: 'ignore', value: startMembersList, inline: true },
             );
 
-        await interaction.reply({ embed: [embed], components: [buttons] });
+        const statusControllerMessage = await interaction.reply({ embed: [embed], components: [buttons] });
 
-        const collector = await interaction.message.createMessageComponentCollector();
+        const collector = await statusControllerMessage.createMessageComponentCollector();
 
         collector.on('collect', async (action) => {
             const buttonId = action.customId;
@@ -73,19 +73,22 @@ module.exports = {
             else {
                 const messageEmbed = action.message.embeds[0];
                 const member = action.member.id;
+                const memberNewStatus = buttonId;
+                const memberOldStatus = membersStatus[member];
 
                 for (let fieldIndex = 0; fieldIndex < messageEmbed.fields.length; fieldIndex++) {
-                    if (messageEmbed.fields[fieldIndex].name === membersStatus[member]) {
-                        messageEmbed.fields[fieldIndex].value.replace(`${member}<br>`);
-                        break;
+                    switch (messageEmbed.fields[fieldIndex].name) {
+                        case memberOldStatus:
+                            messageEmbed.fields[fieldIndex].value.replace(`<@${member}><br>`, '');
+                            break;
+                        case memberNewStatus:
+                            messageEmbed.fields[fieldIndex].value.concat(`<@${member}><br>`);
+                            break;
                     }
                 }
-                for ()
+                action.message.edit({ embed: [messageEmbed], components: [buttons] })
+                    .then(membersStatus[member] = memberNewStatus);
             }
         });
     },
 };
-
-// По кнопке участник добавляется в определую колонку (Иду, не иду, не знаю). Удаление участника из колонки происходит по его статутсу. Для этого определяется статус участника,
-// далее по статусу определяется его колонка (Название статусов участников и name колонок должны совпадать). Из колонки происходит удаление участника (предположительно
-// колонка является строкой), после статус участника изменяется и участник записывается в новую колонку
