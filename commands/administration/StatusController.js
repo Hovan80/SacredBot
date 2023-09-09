@@ -26,7 +26,8 @@ module.exports = {
         let startMembersList = '\u200b';
         raidMembers.each(member => {
             member.status = 'ignore';
-            startMembersList += `<@${member.id}>`;
+            startMembersList += `
+            <@${member.id}>`;
         });
 
         const buttons = new ActionRowBuilder()
@@ -62,8 +63,9 @@ module.exports = {
             );
 
         const statusControllerMessage = await interaction.channel.send({ embeds: [embed], components: [buttons] });
-
         const collector = await statusControllerMessage.createMessageComponentCollector();
+        interaction.reply({ content:'Сообщение создано', ephemeral:true });
+        interaction.deleteReply();
 
         collector.on('collect', async (action) => {
             const buttonId = action.customId;
@@ -81,15 +83,19 @@ module.exports = {
                 for (let fieldIndex = 0; fieldIndex < newEmbed.data.fields.length; fieldIndex++) {
                     switch (newEmbed.data.fields[fieldIndex].name) {
                         case memberOldStatus:
-                            newEmbed.data.fields[fieldIndex].value = newEmbed.data.fields[fieldIndex].value.replace(`<@${memberId}>`, '');
+                            newEmbed.data.fields[fieldIndex].value = newEmbed.data.fields[fieldIndex].value.replace(`
+                            <@${memberId}>`, '');
                             break;
                         case memberNewStatus:
-                            newEmbed.data.fields[fieldIndex].value = newEmbed.data.fields[fieldIndex].value.concat(`<@${memberId}>`);
+                            newEmbed.data.fields[fieldIndex].value = newEmbed.data.fields[fieldIndex].value.concat(`
+                            <@${memberId}>`);
                             break;
                     }
                 }
-                action.message.edit({ embeds: [newEmbed], components: [buttons] })
-                    .then(raidMembers.get(memberId).status = memberNewStatus);
+                await action.message.edit({ embeds: [newEmbed], components: [buttons] });
+                raidMembers.get(memberId).status = memberNewStatus;
+                action.reply({ content:'Статус изменён', ephemeral: true });
+                action.deleteReply();
             }
         });
 
