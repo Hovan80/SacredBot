@@ -1,4 +1,4 @@
-const { SlashCommandBuilder, EmbedBuilder, ButtonBuilder, ButtonStyle, ActionRowBuilder } = require('discord.js');
+const { SlashCommandBuilder, ComponentType, EmbedBuilder, ButtonBuilder, ButtonStyle, ActionRowBuilder } = require('discord.js');
 
 module.exports = {
     data: new SlashCommandBuilder()
@@ -7,6 +7,10 @@ module.exports = {
         .addRoleOption(option =>
             option.setName('role')
             .setDescription('Роль контролируемого рейда')
+            .setRequired(true))
+        .addIntegerOption(option =>
+            option.setName('time')
+            .setDescription('Время действия сообщения в часах')
             .setRequired(true))
         .addStringOption(option =>
             option.setName('title')
@@ -19,13 +23,14 @@ module.exports = {
         const raidRole = interaction.options.getRole('role').id;
         const title = interaction.options.getString('title');
         const desc = interaction.options.getString('description');
+        const time = interaction.options.getInteger('time') * 3600000;
 
         const raidMembers = await interaction.guild.members.fetch();
         raidMembers.sweep(member => !(member._roles.includes(raidRole)));
 
         let startMembersList = '\u200b';
         raidMembers.each(member => {
-            member.status = 'ignore';
+            member.status = 'Не отметились';
             startMembersList += `
             <@${member.id}>`;
         });
@@ -33,45 +38,38 @@ module.exports = {
         const buttons = new ActionRowBuilder()
             .addComponents(
                 new ButtonBuilder()
-                    .setCustomId('success')
+                    .setCustomId('Пойду')
                     .setStyle(ButtonStyle.Secondary)
                     .setEmoji({ name: '✅' }),
 
                 new ButtonBuilder()
-                    .setCustomId('cancel')
+                    .setCustomId('Не пойду')
                     .setStyle(ButtonStyle.Secondary)
                     .setEmoji({ name: '❌' }),
 
                 new ButtonBuilder()
-                    .setCustomId('maybe')
+                    .setCustomId('Возможно приду')
                     .setStyle(ButtonStyle.Secondary)
                     .setEmoji({ name: '❓' }),
-                new ButtonBuilder()
-                    .setCustomId('delete')
-                    .setStyle(ButtonStyle.Danger)
-                    .setEmoji({ name: '🗑' }),
             );
 
         const embed = new EmbedBuilder()
             .setTitle(title)
             .setDescription(desc)
             .setFields(
-                { name: 'success', value: '\u200b', inline: true },
-                { name: 'cancel', value: '\u200b', inline: true },
-                { name: 'maybe', value: '\u200b', inline: true },
-                { name: 'ignore', value: startMembersList, inline: true },
+                { name: 'Пойду', value: '\u200b', inline: true },
+                { name: 'Не пойду', value: '\u200b', inline: true },
+                { name: 'Возможно приду', value: '\u200b', inline: true },
+                { name: 'Не отметились', value: startMembersList, inline: true },
             );
 
         const statusControllerMessage = await interaction.channel.send({ embeds: [embed], components: [buttons] });
-        const collector = await statusControllerMessage.createMessageComponentCollector();
+        const collector = await statusControllerMessage.createMessageComponentCollector({ time: time, componentType: ComponentType.Button });
         interaction.reply({ content:'Сообщение создано', ephemeral:true });
         interaction.deleteReply();
 
         collector.on('collect', async (action) => {
             const buttonId = action.customId;
-
-            if (buttonId === 'delete') { action.message.delete(); }
-            else {
                 if (!(action.member._roles.includes(raidRole))) {
                     return action.reply({ content: 'Недостаточно прав', ephemeral: true });
                 }
@@ -96,8 +94,6 @@ module.exports = {
                 raidMembers.get(memberId).status = memberNewStatus;
                 action.reply({ content:'Статус изменён', ephemeral: true });
                 action.deleteReply();
-            }
-        });
-
+            });
     },
 };
